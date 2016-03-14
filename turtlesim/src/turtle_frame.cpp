@@ -119,7 +119,7 @@ TurtleFrame::~TurtleFrame()
 }
 
 bool TurtleFrame::spawnCircleCallback(turtlesim::SpawnCircle::Request& req, turtlesim::SpawnCircle::Response& res)
-{   if(req.x<0 || req.x>500 || req.y<0 || req.y>500){
+{   if(req.x<0 || req.x>width_in_meters_ || req.y<0 || req.y>height_in_meters_){
         return false;
     }
     if (circles_.empty()){
@@ -279,7 +279,7 @@ void TurtleFrame::paintEvent(QPaintEvent*)
   path_painter_.setPen(Qt::red );
   path_painter_.setBrush( Qt::red );
   for (M_Circle::iterator it=circles_.begin(); it!=circles_.end(); ++it){
-         path_painter_.drawEllipse(it->second,10,10);
+         path_painter_.drawEllipse(it->second.x()*meter_,( height_in_meters_- it->second.y())*meter_,20,20);
 
       }
   QPainter painter(this);
