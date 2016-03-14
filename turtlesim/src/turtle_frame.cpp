@@ -50,7 +50,7 @@ TurtleFrame::TurtleFrame(QWidget* parent, Qt::WindowFlags f)
 , id_counter_(0)
 {
   setFixedSize(500, 500);
-  setWindowTitle("TurtleSim");
+  setWindowTitle("TurtleSimLabAI");
 
   srand(time(NULL));
 
@@ -91,7 +91,9 @@ TurtleFrame::TurtleFrame(QWidget* parent, Qt::WindowFlags f)
   reset_srv_ = nh_.advertiseService("reset", &TurtleFrame::resetCallback, this);
   spawn_srv_ = nh_.advertiseService("spawn", &TurtleFrame::spawnCallback, this);
   kill_srv_ = nh_.advertiseService("kill", &TurtleFrame::killCallback, this);
-
+  circle_srv_ = nh_.advertiseService("spawnCircle", &TurtleFrame::spawnCircleCallback, this);
+  remove_circle_srv_ = nh_.advertiseService("removeCircle", &TurtleFrame::removeCircleCallback, this);
+  get_circle_srv_= nh_.advertiseService("getCircles", &TurtleFrame::getCirclesCallback, this);
   ROS_INFO("Starting turtlesim with node name %s", ros::this_node::getName().c_str()) ;
 
   width_in_meters_ = (width() - 1) / meter_;
@@ -114,6 +116,67 @@ TurtleFrame::TurtleFrame(QWidget* parent, Qt::WindowFlags f)
 TurtleFrame::~TurtleFrame()
 {
   delete update_timer_;
+}
+
+bool TurtleFrame::spawnCircleCallback(turtlesim::SpawnCircle::Request& req, turtlesim::SpawnCircle::Response& res)
+{   if(req.x<0 || req.x>500 || req.y<0 || req.y>500){
+        return false;
+    }
+    if (circles_.empty()){
+        circles_.insert(std::make_pair(0,QPointF(req.x,req.y)));
+    }else{
+        u_int8_t last=circles_.rbegin()->first;
+        circles_.insert(std::make_pair(last+1,QPointF(req.x,req.y)));
+    }
+    turtlesim::Circle circle;
+    for (M_Circle::iterator it=circles_.begin(); it!=circles_.end(); ++it){
+       circle.id=it->first;
+       circle.x=it->second.x();
+       circle.y=it->second.y();
+       res.circles.push_back(circle);
+    }
+    update();
+    return true;
+
+}
+bool TurtleFrame::removeCircleCallback(turtlesim::RemoveCircle::Request& req, turtlesim::RemoveCircle::Response& res){
+    M_Circle::iterator elem=circles_.find(req.id);
+    if( elem!=circles_.end() ){
+
+        int r = DEFAULT_BG_R;
+        int g = DEFAULT_BG_G;
+        int b = DEFAULT_BG_B;
+
+        path_painter_.setPen(qRgb(r, g, b));
+        path_painter_.setBrush(QColor(qRgb(r, g, b)));
+        path_painter_.drawEllipse(elem->second,10,10);
+        circles_.erase(elem);
+        turtlesim::Circle circle;
+        for (M_Circle::iterator it=circles_.begin(); it!=circles_.end(); ++it){
+           circle.id=it->first;
+           circle.x=it->second.x();
+           circle.y=it->second.y();
+           res.circles.push_back(circle);
+
+        }
+        update();
+        return true;
+    }
+    return false;
+}
+
+bool TurtleFrame::getCirclesCallback(turtlesim::GetCircles::Request& req, turtlesim::GetCircles::Response& res){
+    if(circles_.empty()){
+        return false;
+    }
+    turtlesim::Circle circle;
+    for (M_Circle::iterator it=circles_.begin(); it!=circles_.end(); ++it){
+       circle.id=it->first;
+       circle.x=it->second.x();
+       circle.y=it->second.y();
+       res.circles.push_back(circle);
+    }
+    return true;
 }
 
 bool TurtleFrame::spawnCallback(turtlesim::Spawn::Request& req, turtlesim::Spawn::Response& res)
@@ -212,8 +275,14 @@ void TurtleFrame::onUpdate()
 
 void TurtleFrame::paintEvent(QPaintEvent*)
 {
-  QPainter painter(this);
 
+  path_painter_.setPen(Qt::red );
+  path_painter_.setBrush( Qt::red );
+  for (M_Circle::iterator it=circles_.begin(); it!=circles_.end(); ++it){
+         path_painter_.drawEllipse(it->second,10,10);
+
+      }
+  QPainter painter(this);
   painter.drawImage(QPoint(0, 0), path_image_);
 
   M_Turtle::iterator it = turtles_.begin();
@@ -222,6 +291,7 @@ void TurtleFrame::paintEvent(QPaintEvent*)
   {
     it->second->paint(painter);
   }
+
 }
 
 void TurtleFrame::updateTurtles()
