@@ -149,7 +149,7 @@ bool TurtleFrame::removeCircleCallback(turtlesim::RemoveCircle::Request& req, tu
 
         path_painter_.setPen(qRgb(r, g, b));
         path_painter_.setBrush(QColor(qRgb(r, g, b)));
-        path_painter_.drawEllipse(elem->second,10,10);
+        path_painter_.drawEllipse(elem->second.x()*meter_,( height_in_meters_- elem->second.y())*meter_,20,20);
         circles_.erase(elem);
         turtlesim::Circle circle;
         for (M_Circle::iterator it=circles_.begin(); it!=circles_.end(); ++it){
